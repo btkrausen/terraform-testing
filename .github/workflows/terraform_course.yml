@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         terraform:
-          - "1.10.0" # Supports older version
+          - "1.10.0" # Supports slightly older version
           - "1.11.0" # Current stable version
           - "1.11.2" # Latest version
         directory:
