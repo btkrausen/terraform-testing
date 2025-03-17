@@ -78,8 +78,9 @@ if ! terraform validate -no-color; then
   exit 1
 fi
 
+# Run terraform plan and capture the exit code correctly
 log "Running terraform plan..."
-terraform plan -no-color -detailed-exitcode
+terraform plan -no-color -detailed-exitcode > plan_output.txt 2>&1
 PLAN_EXIT_CODE=$?
 
 # Check exit code:
@@ -90,8 +91,12 @@ if [ $PLAN_EXIT_CODE -eq 0 ]; then
   log "✅ Plan successful - No changes required"
 elif [ $PLAN_EXIT_CODE -eq 2 ]; then
   log "✅ Plan successful - Changes detected"
+  # Override the exit code for GitHub Actions
+  # This makes GitHub Actions show this as a success
+  exit 0
 else
-  log "❌ ERROR: Terraform plan failed with exit code $PLAN_EXIT_CODE"
+  log "❌ ERROR: Terraform plan failed"
+  cat plan_output.txt >> $LOG
   exit 1
 fi
 
