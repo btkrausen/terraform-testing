@@ -17,7 +17,37 @@ log "Testing module: $MODULE_PATH with Terraform version: $TF_VERSION"
 
 # Install and use specified Terraform version
 log "Setting up Terraform version $TF_VERSION"
-curl -s https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip -o terraform.zip
+TF_DOWNLOAD_URL="https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
+log "Downloading from: $TF_DOWNLOAD_URL"
+
+# Try multiple times with verification
+MAX_ATTEMPTS=3
+for attempt in $(seq 1 $MAX_ATTEMPTS); do
+  log "Download attempt $attempt of $MAX_ATTEMPTS"
+  
+  # Clear any previous download
+  rm -f terraform.zip
+  
+  # Download with curl, following redirects, showing progress
+  curl -L --fail -# -o terraform.zip $TF_DOWNLOAD_URL
+  
+  # Verify the download
+  if [ -f terraform.zip ] && unzip -t terraform.zip > /dev/null 2>&1; then
+    log "Download successful and verified"
+    break
+  else
+    log "Download failed or verification failed"
+    if [ $attempt -eq $MAX_ATTEMPTS ]; then
+      log "❌ ERROR: Failed to download Terraform after $MAX_ATTEMPTS attempts"
+      exit 1
+    fi
+    # Wait before trying again
+    sleep 5
+  fi
+done
+
+# Now extract it
+log "Extracting Terraform binary"
 unzip -o terraform.zip
 chmod +x terraform
 export PATH=$PWD:$PATH
