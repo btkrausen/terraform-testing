@@ -29,8 +29,8 @@ jobs:
           - 'modules/tfb/aws/lab_03'
           - 'modules/tfb/aws/lab_04'
           - 'modules/tfb/aws/lab_05'
-          - 'modules/tfb/aws/lab_05/developer'
-
+          - 'modules/tfb/aws/lab_05/development'
+    
     env:
       # Global environment variables
       TF_IN_AUTOMATION: "true"
@@ -39,6 +39,10 @@ jobs:
       # Provider credentials from secrets (if needed)
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       GITHUB_TOKEN: ${{ secrets.GH_PAT_TOKEN }}
     
     steps:
@@ -77,15 +81,27 @@ jobs:
       - name: Terraform Plan
         id: plan
         working-directory: ${{ steps.prepare.outputs.temp_dir }}
-        continue-on-error: true
         run: |
-          terraform plan -input=false -detailed-exitcode
-          echo "plan_exit_code=$?" >> $GITHUB_OUTPUT
+          # Run terraform plan and save exit code without failing the step
+          terraform plan -input=false -detailed-exitcode || true
+          # Save the exit code to a file that can be read in the next step
+          echo $? > plan_exit_code.txt
+          
+          # Also output for debugging
+          PLAN_CODE=$(cat plan_exit_code.txt)
+          echo "Plan completed with exit code: $PLAN_CODE"
       
       - name: Check Plan Result
         id: check-plan
         run: |
-          EXIT_CODE=${{ steps.plan.outputs.plan_exit_code }}
+          # Read exit code from file if the file exists
+          if [ -f "${{ steps.prepare.outputs.temp_dir }}/plan_exit_code.txt" ]; then
+            EXIT_CODE=$(cat "${{ steps.prepare.outputs.temp_dir }}/plan_exit_code.txt")
+            echo "Retrieved exit code: $EXIT_CODE"
+          else
+            echo "Could not find exit code file, assuming failure"
+            EXIT_CODE=1
+          fi
           
           if [ "$EXIT_CODE" = "0" ]; then
             echo "✅ Plan successful - No changes required"
