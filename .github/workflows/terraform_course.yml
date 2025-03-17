@@ -26,12 +26,12 @@ jobs:
           - "1.11.0" # Current stable version
           - "1.11.2" # Latest version
         directory:
-          - "../modules/beginner_course/lab_01"
-          - "../modules/beginner_course/lab_02"
-          - "../modules/beginner_course/lab_03"
-          - "../modules/beginner_course/lab_04"
-          - "../modules/beginner_course/lab_05"
-          - "../modules/beginner_course/lab_05/development"
+          - "../modules/tfb/aws/lab_01"
+          - "../modules/tfb/aws/lab_02"
+          - "../modules/tfb/aws/lab_03"
+          - "../modules/tfb/aws/lab_04"
+          - "../modules/tfb/aws/lab_05"
+          - "../modules/tfb/aws/lab_05/development"
 
     steps:
       - name: Checkout code
