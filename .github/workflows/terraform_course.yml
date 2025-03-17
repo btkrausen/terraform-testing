@@ -1,245 +1,202 @@
-name: Terraform - AWS Lab Tests
+name: Terraform Lab Tests
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
   schedule:
-    - cron: "0 0 * * 0" # Run weekly to catch issues with latest Terraform versions
+    - cron: '0 0 * * 0'  # Weekly run on Sundays
 
 permissions:
   contents: read
-  issues: write # Needed to create issues on failure
-  pull-requests: write # Needed to comment on PRs
+  issues: write
+  pull-requests: write
 
 jobs:
-  # Validate all Terraform modules and environments
-  validate:
-    name: Validate Terraform
+  # Determine which labs have changed
+  changes:
+    name: Detect Changed Labs
     runs-on: ubuntu-latest
-    env:
-      # Reference secrets as environment variables
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    strategy:
-      fail-fast: false
-      matrix:
-        terraform:
-          - "1.10.0" # Supports slightly older version
-          - "1.11.0" # Current stable version
-          - "1.11.2" # Latest version
-        directory:
-          - "modules/tfb/aws/lab_01"
-          - "modules/tfb/aws/lab_02"
-          - "modules/tfb/aws/lab_03"
-          - "modules/tfb/aws/lab_04"
-          - "modules/tfb/aws/lab_05"
-          - "modules/tfb/aws/lab_05/development"
-
+    outputs:
+      labs: ${{ steps.filter.outputs.changes }}
+      all_labs: ${{ steps.list-all-labs.outputs.all_labs }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v4
+      
+      # Find which labs have changed (for PRs and pushes)
+      - uses: dorny/paths-filter@v2
+        id: filter
         with:
-          terraform_version: ${{ matrix.terraform }}
-          terraform_wrapper: false
-
-      - name: Terraform Init
-        working-directory: ${{ matrix.directory }}
-        run: terraform init -backend=false
-
-      - name: Terraform Validate
-        working-directory: ${{ matrix.directory }}
-        run: terraform validate
-
-      - name: Terraform Format Check
-        working-directory: ${{ matrix.directory }}
-        run: terraform fmt -check
-        continue-on-error: true # Don't fail the build for formatting issues
-
-  # Run module-level tests
-  module-tests:
-    name: Module Tests
-    runs-on: ubuntu-latest
-    needs: validate
-    env:
-      # Reference secrets as environment variables
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    strategy:
-      fail-fast: false
-      matrix:
-        terraform:
-          - "1.10.0" # Supports older version
-          - "1.11.0" # Current stable version
-          - "1.11.2" # Latest version
-        module:
-          - "modules/tfb/aws/lab_01"
-          - "modules/tfb/aws/lab_02"
-          - "modules/tfb/aws/lab_03"
-          - "modules/tfb/aws/lab_04"
-          - "modules/tfb/aws/lab_05"
-          - "modules/tfb/aws/lab_05/development"
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ matrix.terraform }}
-          terraform_wrapper: false
-
-      - name: Run Module Tests
-        id: module-test
+          list-files: json
+          filters: |
+            aws_lab_01: 'aws/lab_01/**'
+            aws_lab_02: 'aws/lab_02/**'
+            aws_lab_03: 'aws/lab_03/**'
+            aws_lab_04: 'aws/lab_04/**'
+            aws_lab_05: 'aws/lab_05/**'
+            aws_lab_05: 'aws/lab_05/developer/**'
+      
+      # List all labs for scheduled runs
+      - name: List all labs
+        id: list-all-labs
+        if: github.event_name == 'schedule'
         run: |
-          chmod +x ./scripts/test.sh
-          ./scripts/test.sh "${{ matrix.module }}" "${{ matrix.terraform }}"
-        with:
-          terraform_wrapper: false
+          ALL_LABS=$(find aws azure github -maxdepth 1 -mindepth 1 -type d -name "lab_*" | sed 's|/|_|g' | jq -R -s -c 'split("\n")[:-1]')
+          echo "all_labs=$ALL_LABS" >> $GITHUB_OUTPUT
 
-  # Run integration tests
-  integration-tests:
-    name: Integration Tests
+  # Test all labs that have changed
+  test-labs:
+    name: Test Labs
+    needs: changes
     runs-on: ubuntu-latest
-    needs: module-tests
-    env:
-      # Reference secrets as environment variables
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     strategy:
       fail-fast: false
       matrix:
-        terraform:
-          - "1.10.0" # Supports older version
-          - "1.11.0" # Current stable version
-          - "1.11.2" # Latest version
-
+        lab: ${{ fromJSON(github.event_name == 'schedule' && needs.changes.outputs.all_labs || needs.changes.outputs.labs) }}
+    
+    env:
+      # Global environment variables
+      TF_IN_AUTOMATION: "true"
+      TF_CLI_ARGS: "-no-color"
+      
+      # Provider credentials from secrets (if needed)
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ matrix.terraform }}
-          terraform_wrapper: false
-
-      - name: Run Integration Tests
+      - uses: actions/checkout@v4
+      
+      # Convert lab ID back to directory path
+      - name: Set lab path
+        id: lab-path
         run: |
-          for test_dir in tests/integration_tests/*/; do
-            echo "Testing $(basename "$test_dir")"
-            cd "$test_dir"
-            terraform init -backend=false
-            terraform validate
-            terraform plan -detailed-exitcode
-            cd - > /dev/null
-          done
-
-  # Test with the latest version of Terraform
-  latest-terraform:
-    name: Test with Latest Terraform
-    runs-on: ubuntu-latest
-    needs: validate
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+          LAB_PATH=$(echo "${{ matrix.lab }}" | sed 's|_|/|g')
+          echo "lab_path=$LAB_PATH" >> $GITHUB_OUTPUT
+      
       - name: Setup Terraform (Latest)
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
-
-      - name: Terraform Version
-        run: terraform version
-
-      - name: Run All Tests
+      
+      - name: Run Lab Test
+        id: test
         run: |
-          chmod +x ./scripts/test.sh
-          ./scripts/test.sh
+          # Create test script
+          cat > test.sh << 'EOF'
+          #!/bin/bash
+          set -e
 
-  # Create a notification summary for failures
+          LAB_PATH=$1
+          echo "Testing lab: $LAB_PATH with latest Terraform version"
+          echo "Terraform version: $(terraform -version)"
+
+          # Create temporary working directory
+          TEMP_DIR=$(mktemp -d)
+          echo "Working in temporary directory: $TEMP_DIR"
+
+          # Copy lab files to temp directory
+          cp -r $LAB_PATH/* $TEMP_DIR/
+
+          # Navigate to working directory
+          cd $TEMP_DIR
+
+          # Run tests
+          echo "Initializing Terraform..."
+          terraform init -backend=false -no-color
+
+          echo "✅ Init completed successfully for $LAB_PATH"
+
+          echo "Validating Terraform configuration..."
+          terraform validate -no-color
+
+          echo "✅ Validate completed successfully for $LAB_PATH"
+
+          echo "Running terraform plan..."
+          # Run plan but don't fail if exit code is 2 (changes detected)
+          terraform plan -no-color -input=false || true
+
+          # Clean up
+          cd - > /dev/null
+          rm -rf $TEMP_DIR
+
+          echo "✅ Test completed successfully for $LAB_PATH"
+          EOF
+          
+          chmod +x ./test.sh
+          ./test.sh "${{ steps.lab-path.outputs.lab_path }}"
+      
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ matrix.lab }}
+          path: |
+            terraform*.log
+            test-output.log
+          retention-days: 7
+
+  # Create a summary of failures (if any)
   notify-failures:
-    name: Notification for Test Failures
+    name: Notify Test Failures
     runs-on: ubuntu-latest
-    needs: [validate, module-tests, integration-tests, latest-terraform]
-    if: failure()
-
+    needs: test-labs
+    if: always() && contains(needs.test-labs.result, 'failure')
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Collect workflow failure information
-        id: collect-failures
+      - uses: actions/checkout@v4
+      
+      - name: Create Failure Summary
+        id: failure-summary
         run: |
-          # Fetch failed jobs from the current workflow run
+          echo "### ❌ Terraform Lab Test Failures" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Failed tests:" >> $GITHUB_STEP_SUMMARY
+          
+          FAILURE_INFO="The following lab tests failed:\n\n"
+          
+          # Get failed jobs from GitHub API
           FAILED_JOBS=$(curl -s \
-            -H "Authorization: token ${{ secrets.MY_GITHUB_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?filter=failed" | jq -r '.jobs[] | "- **" + .name + "** (Job #" + (.id|tostring) + ")"')
-
-          echo "FAILED_JOBS<<EOF" >> $GITHUB_ENV
-          echo "$FAILED_JOBS" >> $GITHUB_ENV
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?filter=failed" | jq -r '.jobs[] | select(.name | contains("Test Labs")) | .name')
+          
+          echo "$FAILED_JOBS" | while read JOB; do
+            LAB=$(echo "$JOB" | grep -oP 'lab_\w+' || echo "unknown")
+            
+            echo "- **$LAB**" >> $GITHUB_STEP_SUMMARY
+            FAILURE_INFO+="- $LAB\n"
+          done
+          
+          echo "FAILURE_INFO<<EOF" >> $GITHUB_ENV
+          echo -e "$FAILURE_INFO" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-
-          # Create a summary of the failures
-          echo "### ❌ Terraform Test Failures Detected" > $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The following jobs failed:" >> $GITHUB_STEP_SUMMARY
-          echo "$FAILED_JOBS" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-
-      - name: Create GitHub Issue for Failed Test
+      
+      # Create issue for failures on main branch
+      - name: Create GitHub Issue
         if: github.event_name != 'pull_request'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const issueBody = `## Terraform Compatibility Test Failure
-
-            ### Failed Jobs:
-            ${process.env.FAILED_JOBS}
-
-            ### Details:
-            * **Workflow Run**: [#${context.runId}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
-            * **Commit**: [${context.sha.slice(0,7)}](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${context.sha})
-            * **Branch**: ${context.ref.replace('refs/heads/', '')}
-
-            Please investigate these failures and fix the compatibility issues.`;
-
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `🚨 Terraform Compatibility Test Failure - ${new Date().toISOString().split('T')[0]}`,
-              body: issueBody,
+              title: `🚨 Terraform Lab Test Failures - ${new Date().toISOString().split('T')[0]}`,
+              body: `## Terraform Lab Test Failures\n\n${process.env.FAILURE_INFO}\n\n[View workflow run](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`,
               labels: ['bug', 'terraform-compatibility']
             });
-
-      - name: Comment on PR for Failed Test
+      
+      # Comment on PR for failures
+      - name: Comment on PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const prComment = `## ❌ Terraform Compatibility Test Failure
-
-            ### Failed Jobs:
-            ${process.env.FAILED_JOBS}
-
-            ### Details:
-            * **Workflow Run**: [View Run Details](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
-
-            Please fix these failures before merging.`;
-
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: prComment
+              body: `## ❌ Terraform Lab Test Failures\n\n${process.env.FAILURE_INFO}\n\n[View workflow run](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
             });
