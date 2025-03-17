@@ -80,7 +80,7 @@ jobs:
         with:
           auth: ${{ secrets.MY_GIST_TOKEN }}
           gistID: 14c752e5e9798bf8e28482bcfd02d186
-          filename: terraform_version.json # export version
+          filename: terraform_version.json # export tf version
           label: "Terraform"
           message: "v${{ steps.tf-version.outputs.version }}"
           color: blue
