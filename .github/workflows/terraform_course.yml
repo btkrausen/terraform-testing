@@ -96,16 +96,6 @@ jobs:
           chmod +x ./scripts/test.sh
           ./scripts/test.sh "${{ matrix.module }}" "${{ matrix.terraform }}"
 
-      - name: Upload test log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-logs-${{ matrix.module }}-terraform-${{ matrix.terraform }}
-          path: |
-            .terraform.log
-            test-output.log
-          retention-days: 7
-
   # Run integration tests
   integration-tests:
     name: Integration Tests
