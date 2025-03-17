@@ -8,19 +8,9 @@ set -e
 MODULE_PATH=$1
 TF_VERSION=$2
 
-# Set up logging
-LOG_FILE="test-output.log"
-echo "Terraform Module Compatibility Test" > $LOG_FILE
-echo "=================================" >> $LOG_FILE
-echo "Module: $MODULE_PATH" >> $LOG_FILE
-echo "Terraform Version: $TF_VERSION" >> $LOG_FILE
-echo "Date: $(date)" >> $LOG_FILE
-echo "=================================" >> $LOG_FILE
-
 # Log to both console and file
 log() {
   echo "$1"
-  echo "$1" >> $LOG_FILE
 }
 
 log "Testing module: $MODULE_PATH with Terraform version: $TF_VERSION"
