@@ -96,7 +96,6 @@ elif [ $PLAN_EXIT_CODE -eq 2 ]; then
   exit 0
 else
   log "❌ ERROR: Terraform plan failed"
-  cat plan_output.txt >> $LOG
   exit 1
 fi
 
