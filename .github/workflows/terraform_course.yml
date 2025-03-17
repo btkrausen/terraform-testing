@@ -1,4 +1,4 @@
-name: Terraform Lab Tests
+name: Terraform Labs
 
 on:
   push:
