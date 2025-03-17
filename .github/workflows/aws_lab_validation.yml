@@ -1,4 +1,4 @@
-name: Terraform Labs
+name: Terraform AWS Labs
 
 on:
   push:
