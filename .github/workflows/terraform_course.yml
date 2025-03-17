@@ -92,7 +92,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ matrix.terraform }}
-      
+
       - name: Run Module Tests
         id: module-test
         run: |
@@ -157,7 +157,7 @@ jobs:
         run: terraform version
 
       - name: Run All Tests
-      run: |
+        run: |
           chmod +x ./scripts/test.sh
           ./scripts/test.sh
 
