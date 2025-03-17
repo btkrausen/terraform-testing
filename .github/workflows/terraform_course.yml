@@ -73,13 +73,14 @@ jobs:
           echo "version=$TF_VERSION" >> $GITHUB_OUTPUT
           echo "Detected Terraform version: $TF_VERSION"
       
+        
       - name: Update Terraform Version Badge
         if: always()
         uses: schneegans/dynamic-badges-action@v1.6.0
         with:
           auth: ${{ secrets.MY_GIST_TOKEN }}
           gistID: 14c752e5e9798bf8e28482bcfd02d186
-          filename: terraform_version.json
+          filename: terraform_version.json # export version
           label: "Terraform"
           message: "v${{ steps.tf-version.outputs.version }}"
           color: blue
