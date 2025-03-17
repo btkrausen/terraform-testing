@@ -14,46 +14,32 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Determine which labs have changed
-  changes:
-    name: Detect Changed Labs
+  # Find all labs
+  find-labs:
+    name: Find All Labs
     runs-on: ubuntu-latest
     outputs:
-      labs: ${{ steps.filter.outputs.changes }}
       all_labs: ${{ steps.list-all-labs.outputs.all_labs }}
     steps:
       - uses: actions/checkout@v4
       
-      # Find which labs have changed (for PRs and pushes)
-      - uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          list-files: json
-          filters: |
-            aws_lab_01: 'aws/lab_01/**'
-            aws_lab_02: 'aws/lab_02/**'
-            aws_lab_03: 'aws/lab_03/**'
-            aws_lab_04: 'aws/lab_04/**'
-            aws_lab_05: 'aws/lab_05/**'
-            aws_lab_05: 'aws/lab_05/developer/**'
-      
-      # List all labs for scheduled runs
+      # List all labs
       - name: List all labs
         id: list-all-labs
-        if: github.event_name == 'schedule'
         run: |
           ALL_LABS=$(find aws azure github -maxdepth 1 -mindepth 1 -type d -name "lab_*" | sed 's|/|_|g' | jq -R -s -c 'split("\n")[:-1]')
           echo "all_labs=$ALL_LABS" >> $GITHUB_OUTPUT
+          echo "Found labs: $ALL_LABS"
 
-  # Test all labs that have changed
+  # Test all labs
   test-labs:
     name: Test Labs
-    needs: changes
+    needs: find-labs
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        lab: ${{ fromJSON(github.event_name == 'schedule' && needs.changes.outputs.all_labs || needs.changes.outputs.labs) }}
+        lab: ${{ fromJSON(needs.find-labs.outputs.all_labs) }}
     
     env:
       # Global environment variables
@@ -63,7 +49,11 @@ jobs:
       # Provider credentials from secrets (if needed)
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      GITHUB_TOKEN: ${{ secrets.GH_PAT_TOKEN }}
     
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +64,7 @@ jobs:
         run: |
           LAB_PATH=$(echo "${{ matrix.lab }}" | sed 's|_|/|g')
           echo "lab_path=$LAB_PATH" >> $GITHUB_OUTPUT
+          echo "Testing lab: $LAB_PATH"
       
       - name: Setup Terraform (Latest)
         uses: hashicorp/setup-terraform@v3
@@ -106,12 +97,8 @@ jobs:
           echo "Initializing Terraform..."
           terraform init -backend=false -no-color
 
-          echo "✅ Init completed successfully for $LAB_PATH"
-
           echo "Validating Terraform configuration..."
           terraform validate -no-color
-
-          echo "✅ Validate completed successfully for $LAB_PATH"
 
           echo "Running terraform plan..."
           # Run plan but don't fail if exit code is 2 (changes detected)
