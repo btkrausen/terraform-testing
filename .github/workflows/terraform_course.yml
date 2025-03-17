@@ -27,7 +27,7 @@ jobs:
       - name: List all labs
         id: list-all-labs
         run: |
-          ALL_LABS=$(find aws azure github -maxdepth 1 -mindepth 1 -type d -name "lab_*" | sed 's|/|_|g' | jq -R -s -c 'split("\n")[:-1]')
+          ALL_LABS=$(find aws azure github -maxdepth 3 -mindepth 1 -type d -name "lab_*" | sed 's|/|_|g' | jq -R -s -c 'split("\n")[:-1]')
           echo "all_labs=$ALL_LABS" >> $GITHUB_OUTPUT
           echo "Found labs: $ALL_LABS"
 
