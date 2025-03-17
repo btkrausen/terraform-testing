@@ -79,7 +79,7 @@ if ! terraform validate -no-color; then
 fi
 
 log "Running terraform plan..."
-terraform plan -no-color -detailed-exitcode > $LOG_FILE 2>&1
+terraform plan -no-color -detailed-exitcode
 PLAN_EXIT_CODE=$?
 
 # Check exit code:
@@ -92,7 +92,6 @@ elif [ $PLAN_EXIT_CODE -eq 2 ]; then
   log "✅ Plan successful - Changes detected"
 else
   log "❌ ERROR: Terraform plan failed with exit code $PLAN_EXIT_CODE"
-  cat $LOG_FILE
   exit 1
 fi
 
