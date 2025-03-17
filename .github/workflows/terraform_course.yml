@@ -14,33 +14,23 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Find all labs
-  find-labs:
-    name: Find All Labs
-    runs-on: ubuntu-latest
-    outputs:
-      all_labs: ${{ steps.list-all-labs.outputs.all_labs }}
-    steps:
-      - uses: actions/checkout@v4
-      
-      # List all labs
-      - name: List all labs
-        id: list-all-labs
-        run: |
-          ALL_LABS=$(find aws azure github -maxdepth 3 -mindepth 1 -type d -name "lab_*" | sed 's|/|_|g' | jq -R -s -c 'split("\n")[:-1]')
-          echo "all_labs=$ALL_LABS" >> $GITHUB_OUTPUT
-          echo "Found labs: $ALL_LABS"
-
   # Test all labs
   test-labs:
     name: Test Labs
-    needs: find-labs
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        lab: ${{ fromJSON(needs.find-labs.outputs.all_labs) }}
-    
+        # EXPLICITLY LIST YOUR LABS HERE
+        # Replace these examples with your actual lab paths
+        lab_path:
+          - 'modules/tfb/aws/lab_01'
+          - 'modules/tfb/aws/lab_02'
+          - 'modules/tfb/aws/lab_03'
+          - 'modules/tfb/aws/lab_04'
+          - 'modules/tfb/aws/lab_05'
+          - 'modules/tfb/aws/lab_05/developer'
+
     env:
       # Global environment variables
       TF_IN_AUTOMATION: "true"
@@ -49,80 +39,69 @@ jobs:
       # Provider credentials from secrets (if needed)
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       GITHUB_TOKEN: ${{ secrets.GH_PAT_TOKEN }}
     
     steps:
-      - uses: actions/checkout@v4
-      
-      # Convert lab ID back to directory path
-      - name: Set lab path
-        id: lab-path
-        run: |
-          LAB_PATH=$(echo "${{ matrix.lab }}" | sed 's|_|/|g')
-          echo "lab_path=$LAB_PATH" >> $GITHUB_OUTPUT
-          echo "Testing lab: $LAB_PATH"
+      - name: Checkout code
+        uses: actions/checkout@v4
       
       - name: Setup Terraform (Latest)
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
       
-      - name: Run Lab Test
-        id: test
+      - name: Prepare Working Directory
+        id: prepare
         run: |
-          # Create test script
-          cat > test.sh << 'EOF'
-          #!/bin/bash
-          set -e
-
-          LAB_PATH=$1
-          echo "Testing lab: $LAB_PATH with latest Terraform version"
-          echo "Terraform version: $(terraform -version)"
-
           # Create temporary working directory
           TEMP_DIR=$(mktemp -d)
-          echo "Working in temporary directory: $TEMP_DIR"
-
-          # Copy lab files to temp directory
-          cp -r $LAB_PATH/* $TEMP_DIR/
-
-          # Navigate to working directory
-          cd $TEMP_DIR
-
-          # Run tests
-          echo "Initializing Terraform..."
-          terraform init -backend=false -no-color
-
-          echo "Validating Terraform configuration..."
-          terraform validate -no-color
-
-          echo "Running terraform plan..."
-          # Run plan but don't fail if exit code is 2 (changes detected)
-          terraform plan -no-color -input=false || true
-
-          # Clean up
-          cd - > /dev/null
-          rm -rf $TEMP_DIR
-
-          echo "✅ Test completed successfully for $LAB_PATH"
-          EOF
+          echo "temp_dir=$TEMP_DIR" >> $GITHUB_OUTPUT
+          echo "Working directory: $TEMP_DIR"
           
-          chmod +x ./test.sh
-          ./test.sh "${{ steps.lab-path.outputs.lab_path }}"
+          # Copy lab files to temp directory
+          cp -r "${{ matrix.lab_path }}"/* "$TEMP_DIR"/
+          
+          echo "Preparing lab: ${{ matrix.lab_path }}"
+          echo "Terraform version: $(terraform -version)"
+
+      - name: Terraform Init
+        id: init
+        working-directory: ${{ steps.prepare.outputs.temp_dir }}
+        run: terraform init -backend=false
       
-      - name: Upload test logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-logs-${{ matrix.lab }}
-          path: |
-            terraform*.log
-            test-output.log
-          retention-days: 7
+      - name: Terraform Validate
+        id: validate
+        working-directory: ${{ steps.prepare.outputs.temp_dir }}
+        run: terraform validate
+      
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ steps.prepare.outputs.temp_dir }}
+        continue-on-error: true
+        run: |
+          terraform plan -input=false -detailed-exitcode
+          echo "plan_exit_code=$?" >> $GITHUB_OUTPUT
+      
+      - name: Check Plan Result
+        id: check-plan
+        run: |
+          EXIT_CODE=${{ steps.plan.outputs.plan_exit_code }}
+          
+          if [ "$EXIT_CODE" = "0" ]; then
+            echo "✅ Plan successful - No changes required"
+          elif [ "$EXIT_CODE" = "2" ]; then
+            echo "✅ Plan successful - Changes detected"
+          else
+            echo "❌ ERROR: Terraform plan failed with exit code $EXIT_CODE"
+            exit 1
+          fi
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          # Remove the temporary directory
+          rm -rf ${{ steps.prepare.outputs.temp_dir }}
+          echo "Cleanup completed"
 
   # Create a summary of failures (if any)
   notify-failures:
@@ -149,10 +128,10 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?filter=failed" | jq -r '.jobs[] | select(.name | contains("Test Labs")) | .name')
           
           echo "$FAILED_JOBS" | while read JOB; do
-            LAB=$(echo "$JOB" | grep -oP 'lab_\w+' || echo "unknown")
+            LAB_PATH=$(echo "$JOB" | grep -oP 'lab_path=\K[^)]+' || echo "unknown")
             
-            echo "- **$LAB**" >> $GITHUB_STEP_SUMMARY
-            FAILURE_INFO+="- $LAB\n"
+            echo "- **$LAB_PATH**" >> $GITHUB_STEP_SUMMARY
+            FAILURE_INFO+="- $LAB_PATH\n"
           done
           
           echo "FAILURE_INFO<<EOF" >> $GITHUB_ENV
