@@ -117,6 +117,17 @@ jobs:
           rm -rf ${{ steps.prepare.outputs.temp_dir }}
           echo "Cleanup completed"
 
+      - name: Update Last Tested Badge
+        if: success()  # Only update on successful tests
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.MY_GIST_TOKEN }}
+          gistID: 14c752e5e9798bf8e28482bcfd02d186
+          filename: last_tested_date.json
+          label: "Last Tested"
+          message: "${{ steps.date.outputs.date }}"
+          color: "green"
+
   # Create a summary of failures (if any)
   notify-failures:
     name: Notify Test Failures
