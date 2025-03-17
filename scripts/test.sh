@@ -80,7 +80,7 @@ fi
 
 # Run terraform plan and capture the exit code correctly
 log "Running terraform plan..."
-terraform plan -no-color -detailed-exitcode > plan_output.txt 2>&1
+terraform plan -no-color -detailed-exitcode
 PLAN_EXIT_CODE=$?
 
 # Check exit code:
