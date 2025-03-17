@@ -92,8 +92,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ matrix.terraform }}
-          terraform_wrapper: false
-
+      
       - name: Run Module Tests
         id: module-test
         run: |
@@ -128,6 +127,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Run Integration Tests
+        terraform_wrapper: false
         run: |
           for test_dir in tests/integration_tests/*/; do
             echo "Testing $(basename "$test_dir")"
@@ -157,7 +157,7 @@ jobs:
         run: terraform version
 
       - name: Run All Tests
-        run: |
+      run: |
           chmod +x ./scripts/test.sh
           ./scripts/test.sh
 
