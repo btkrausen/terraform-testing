@@ -28,7 +28,7 @@ jobs:
           - 'modules/tfb/aws/lab_04'
           - 'modules/tfb/aws/lab_05'
           - 'modules/tfb/aws/lab_05/development'
-          - 'modules/tfb/aws/lab_15'
+          - 'modules/tfb/aws/lab_16'
     
     env:
       # Global environment variables
