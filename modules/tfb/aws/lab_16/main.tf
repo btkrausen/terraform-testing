@@ -27,7 +27,7 @@ resource "aws_iam_role" "example" {
   })
 
   tags = {
-    Lab = var.lab_name
+    Lab         = var.lab_name
     Environment = var.environment
   }
 }
