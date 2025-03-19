@@ -32,6 +32,7 @@ jobs:
           - 'modules/tfb/aws/lab_07'
           - 'modules/tfb/aws/lab_08'
           - 'modules/tfb/aws/lab_09'
+          - 'modules/tfb/aws/lab_10'
           - 'modules/tfb/aws/lab_16'
     
     env:
@@ -165,18 +166,4 @@ jobs:
               title: `🚨 Terraform Lab Test Failures - ${new Date().toISOString().split('T')[0]}`,
               body: `## Terraform Lab Test Failures\n\n${process.env.FAILURE_INFO}\n\n[View workflow run](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`,
               labels: ['bug', 'terraform-compatibility']
-            });
-      
-      # Comment on PR for failures
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `## ❌ Terraform Lab Test Failures\n\n${process.env.FAILURE_INFO}\n\n[View workflow run](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
             });
