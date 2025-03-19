@@ -36,6 +36,7 @@ jobs:
           - 'modules/tfb/aws/lab_11'
           - 'modules/tfb/aws/lab_12'
           - 'modules/tfb/aws/lab_16'
+          - 'modules/tfhol/lab_02' # Test HOL initial lab 
     
     env:
       # Global environment variables
