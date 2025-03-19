@@ -124,56 +124,6 @@ jobs:
           rm -rf ${{ steps.prepare.outputs.temp_dir }}
           echo "Cleanup completed"
 
-  # Create a summary of failures (if any)
-  notify-failures:
-    name: Notify Test Failures
-    runs-on: ubuntu-latest
-    needs: test-labs
-    if: always() && contains(needs.test-labs.result, 'failure')
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Create Failure Summary
-        id: failure-summary
-        run: |
-          echo "### ❌ Terraform Lab Test Failures" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Failed tests:" >> $GITHUB_STEP_SUMMARY
-          
-          FAILURE_INFO="The following lab tests failed:\n\n"
-          
-          # Get failed jobs from GitHub API
-          FAILED_JOBS=$(curl -s \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?filter=failed" | jq -r '.jobs[] | select(.name | contains("Test Labs")) | .name')
-          
-          echo "$FAILED_JOBS" | while read JOB; do
-            LAB_PATH=$(echo "$JOB" | grep -oP 'lab_path=\K[^)]+' || echo "unknown")
-            
-            echo "- **$LAB_PATH**" >> $GITHUB_STEP_SUMMARY
-            FAILURE_INFO+="- $LAB_PATH\n"
-          done
-          
-          echo "FAILURE_INFO<<EOF" >> $GITHUB_ENV
-          echo -e "$FAILURE_INFO" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-      
-      # Create issue for failures on main branch
-      - name: Create GitHub Issue
-        if: github.event_name != 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🚨 Terraform Lab Test Failures - ${new Date().toISOString().split('T')[0]}`,
-              body: `## Terraform Lab Test Failures\n\n${process.env.FAILURE_INFO}\n\n[View workflow run](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`,
-              labels: ['bug', 'terraform-compatibility']
-            });
-
   test-hol-labs:
     name: TFHOL Labs
     runs-on: ubuntu-latest
