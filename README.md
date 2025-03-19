@@ -1,8 +1,8 @@
-## Terraform Testing repo for my Terraform training course
+## Automated Testing for Terraform training courses
 
 [![Terraform Tests](https://github.com/btkrausen/terraform-testing/actions/workflows/aws_lab_validation.yml/badge.svg)](https://github.com/btkrausen/terraform-testing/actions/workflows/aws_lab_validation.yml)
 
-This repo is designed to be used for testing Terraform configurations used across my online training courses. It ensures that any configurations are working as expected with the latest versions of Terraform, providers, and modules. Tests are done via GitHub Actions and running each module through a `fmt`, `validate`, `init`, and `plan`. Any errors automatically create an issue on the repo and send me an alert so I can resolve them quickly.
+This repo is designed to test Terraform configurations used across my online training courses. It ensures that configurations work as expected with the latest versions of Terraform, providers, and modules. Tests are done via GitHub Actions and running each module through a `fmt`, `validate`, `init`, and `plan`. Any errors automatically create an issue on the repo, so send me an alert so I can resolve them quickly.
 
 I kept it separate from the course repository to avoid confusing students.
 
