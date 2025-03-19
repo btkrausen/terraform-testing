@@ -37,6 +37,7 @@ jobs:
           - 'modules/tfb/aws/lab_12'
           - 'modules/tfb/aws/lab_13'
           - 'modules/tfb/aws/lab_14'
+          - 'modules/tfb/aws/lab_15'
           - 'modules/tfb/aws/lab_16'
 
     env:
