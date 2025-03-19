@@ -225,7 +225,7 @@ jobs:
   notify-failures:
     name: Notify Test Failures
     runs-on: ubuntu-latest
-    needs: test-labs
+    needs: [test-tfb-labs, test-hol-labs]
     if: always() && contains(needs.test-labs.result, 'failure')
     steps:
       - uses: actions/checkout@v4
