@@ -65,10 +65,14 @@ jobs:
           
           # Copy lab files to temp directory
           cp -r "${{ matrix.lab_path }}"/* "$TEMP_DIR"/
-          
           echo "Preparing lab: ${{ matrix.lab_path }}"
-          echo "Terraform version: $(terraform -version)"
-          
+ 
+      - name: Terraform Version
+        id: version
+        working-directory: ${{ steps.prepare.outputs.temp_dir }}
+        run: |
+          echo "Testing with Terraform version: $(terraform -version)"
+
       - name: Terraform Init
         id: init
         working-directory: ${{ steps.prepare.outputs.temp_dir }}
