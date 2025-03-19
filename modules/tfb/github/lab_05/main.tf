@@ -1,3 +1,14 @@
+# Get information about the current GitHub user
+data "github_user" "current" {
+  username = ""
+}
+
+# Get information about the example repository
+data "github_repository" "existing_example" {
+  full_name  = "terraform_user/${github_repository.example.name}"
+  depends_on = [github_repository.example]
+}
+
 # Create the repository
 resource "github_repository" "example" {
   name        = var.repository_name
