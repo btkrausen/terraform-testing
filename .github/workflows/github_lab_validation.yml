@@ -23,6 +23,7 @@ jobs:
         # LIST OF LABS HERE
         lab_path:
           - 'modules/tfb/github/lab_01'
+          - 'modules/tfb/github/lab_02'
 
     env:
       # Global environment variables
