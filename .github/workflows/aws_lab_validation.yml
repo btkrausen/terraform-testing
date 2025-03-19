@@ -14,8 +14,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  test-labs:
-    name: Test Labs
+  test-tfb-labs:
+    name: TFB Labs
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -36,6 +36,152 @@ jobs:
           - 'modules/tfb/aws/lab_11'
           - 'modules/tfb/aws/lab_12'
           - 'modules/tfb/aws/lab_16'
+
+    env:
+      # Global environment variables
+      TF_IN_AUTOMATION: "true"
+      TF_CLI_ARGS: "-no-color"
+      
+      # Provider credentials from secrets (if needed)
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Terraform (Latest)
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      
+      - name: Prepare Working Directory
+        id: prepare
+        run: |
+          # Create temporary working directory
+          TEMP_DIR=$(mktemp -d)
+          echo "temp_dir=$TEMP_DIR" >> $GITHUB_OUTPUT
+          echo "Working directory: $TEMP_DIR"
+          
+          # Copy lab files to temp directory
+          cp -r "${{ matrix.lab_path }}"/* "$TEMP_DIR"/
+          echo "Preparing lab: ${{ matrix.lab_path }}"
+ 
+      - name: Terraform Version
+        id: version
+        working-directory: ${{ steps.prepare.outputs.temp_dir }}
+        run: |
+          echo "Testing with Terraform version: $(terraform -version)"
+
+      - name: Terraform Init
+        id: init
+        working-directory: ${{ steps.prepare.outputs.temp_dir }}
+        run: terraform init -backend=false
+      
+      - name: Terraform Validate
+        id: validate
+        working-directory: ${{ steps.prepare.outputs.temp_dir }}
+        run: terraform validate
+      
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ steps.prepare.outputs.temp_dir }}
+        run: |
+          # Run terraform plan and save exit code without failing the step
+          terraform plan -input=false -detailed-exitcode || true
+          # Save the exit code to a file that can be read in the next step
+          echo $? > plan_exit_code.txt
+          
+          # Also output for debugging
+          PLAN_CODE=$(cat plan_exit_code.txt)
+          echo "Plan completed with exit code: $PLAN_CODE"
+      
+      - name: Check Plan Result
+        id: check-plan
+        run: |
+          # Read exit code from file if the file exists
+          if [ -f "${{ steps.prepare.outputs.temp_dir }}/plan_exit_code.txt" ]; then
+            EXIT_CODE=$(cat "${{ steps.prepare.outputs.temp_dir }}/plan_exit_code.txt")
+            echo "Retrieved exit code: $EXIT_CODE"
+          else
+            echo "Could not find exit code file, assuming failure"
+            EXIT_CODE=1
+          fi
+          
+          if [ "$EXIT_CODE" = "0" ]; then
+            echo "✅ Plan successful - No changes required"
+          elif [ "$EXIT_CODE" = "2" ]; then
+            echo "✅ Plan successful - Changes detected"
+          else
+            echo "❌ ERROR: Terraform plan failed with exit code $EXIT_CODE"
+            exit 1
+          fi
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          # Remove the temporary directory
+          rm -rf ${{ steps.prepare.outputs.temp_dir }}
+          echo "Cleanup completed"
+
+  # Create a summary of failures (if any)
+  notify-failures:
+    name: Notify Test Failures
+    runs-on: ubuntu-latest
+    needs: test-labs
+    if: always() && contains(needs.test-labs.result, 'failure')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create Failure Summary
+        id: failure-summary
+        run: |
+          echo "### ❌ Terraform Lab Test Failures" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Failed tests:" >> $GITHUB_STEP_SUMMARY
+          
+          FAILURE_INFO="The following lab tests failed:\n\n"
+          
+          # Get failed jobs from GitHub API
+          FAILED_JOBS=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?filter=failed" | jq -r '.jobs[] | select(.name | contains("Test Labs")) | .name')
+          
+          echo "$FAILED_JOBS" | while read JOB; do
+            LAB_PATH=$(echo "$JOB" | grep -oP 'lab_path=\K[^)]+' || echo "unknown")
+            
+            echo "- **$LAB_PATH**" >> $GITHUB_STEP_SUMMARY
+            FAILURE_INFO+="- $LAB_PATH\n"
+          done
+          
+          echo "FAILURE_INFO<<EOF" >> $GITHUB_ENV
+          echo -e "$FAILURE_INFO" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+      
+      # Create issue for failures on main branch
+      - name: Create GitHub Issue
+        if: github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Terraform Lab Test Failures - ${new Date().toISOString().split('T')[0]}`,
+              body: `## Terraform Lab Test Failures\n\n${process.env.FAILURE_INFO}\n\n[View workflow run](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`,
+              labels: ['bug', 'terraform-compatibility']
+            });
+
+  test-hol-labs:
+    name: TFHOL Labs
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # LIST OF LABS HERE
+        lab_path:
           - 'modules/tfhol/lab_02' # Test HOL initial lab 
     
     env:
