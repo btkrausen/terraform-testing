@@ -25,6 +25,9 @@ jobs:
           - 'modules/tfb/github/lab_01'
           - 'modules/tfb/github/lab_02'
           - 'modules/tfb/github/lab_03'
+          - 'modules/tfb/github/lab_04'
+          - 'modules/tfb/github/lab_05'
+
     env:
       # Global environment variables
       TF_IN_AUTOMATION: "true"
