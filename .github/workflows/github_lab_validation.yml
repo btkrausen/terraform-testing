@@ -32,6 +32,7 @@ jobs:
           - 'modules/tfb/github/lab_08'
           - 'modules/tfb/github/lab_09'
           - 'modules/tfb/github/lab_10'
+          - 'modules/tfb/github/lab_11'
 
     env:
       # Global environment variables
