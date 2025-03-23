@@ -24,6 +24,7 @@ jobs:
         # LIST OF LABS HERE
         lab_path:
           - 'modules/tfb/azure/lab_01'
+          - 'modules/tfb/azure/lab_02'
 
     env:
       # Global environment variables
