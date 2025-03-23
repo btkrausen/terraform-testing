@@ -17,6 +17,6 @@ output "lifecycle_examples" {
   description = "Examples of lifecycle configurations used"
   value = {
     "prevent_destroy" = "Repository protected from accidental deletion"
-    "ignore_changes" = "Issue color and repository branch changes are ignored"
+    "ignore_changes"  = "Issue color and repository branch changes are ignored"
   }
 }

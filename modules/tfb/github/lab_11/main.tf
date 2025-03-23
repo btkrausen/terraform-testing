@@ -1,6 +1,6 @@
 # Repository created with the full access provider
 resource "github_repository" "full_access_repo" {
-  provider    = github.full_access 
+  provider    = github.full_access
   name        = var.repo_name
   description = "Repository created with full access token"
   visibility  = "public"

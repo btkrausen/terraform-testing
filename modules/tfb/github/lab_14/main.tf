@@ -34,6 +34,6 @@ module "user-default-branch-protection" {
   source  = "masterborn/default-branch-protection/github"
   version = "1.1.0"
 
-  for_each = var.user_repos
+  for_each        = var.user_repos
   repository_name = split("/", module.user-repositories[each.key].full_name)[1]
 }

@@ -46,7 +46,7 @@ resource "github_repository" "branch_ignore" {
   description = "Repository with branch ignore_changes configuration"
   visibility  = var.repo_visibility
   auto_init   = true
-  
+
   # If branch was changed outside of Terraform, don't try to change it back
   lifecycle {
     ignore_changes = [
