@@ -45,16 +45,12 @@ jobs:
       # Global environment variables
       TF_IN_AUTOMATION: "true"
       TF_CLI_ARGS: "-no-color"
-      
-      # Provider credentials from secrets (if needed)
-      # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: configure aws credentials
+      - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
         with:
           role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_ID }}:role/github-actions
