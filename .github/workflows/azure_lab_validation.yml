@@ -29,6 +29,11 @@ jobs:
           - 'modules/tfb/azure/lab_04'
           - 'modules/tfb/azure/lab_05'         
           - 'modules/tfb/azure/lab_05/development'
+          - 'modules/tfb/azure/lab_06'         
+          - 'modules/tfb/azure/lab_07'         
+          - 'modules/tfb/azure/lab_08'         
+          - 'modules/tfb/azure/lab_09'         
+          - 'modules/tfb/azure/lab_10'         
 
     env:
       # Global environment variables

@@ -69,11 +69,11 @@ resource "azurerm_network_security_rule" "web_http" {
   direction                   = "Inbound"
   access                      = "Allow"
   protocol                    = "Tcp"
-  source_port_range          = "*"
-  destination_port_range     = "80"
-  source_address_prefix      = "*"
-  destination_address_prefix = "*"
-  resource_group_name        = azurerm_resource_group.main.name
+  source_port_range           = "*"
+  destination_port_range      = "80"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = azurerm_network_security_group.web.name
 }
 
@@ -83,11 +83,11 @@ resource "azurerm_network_security_rule" "web_https" {
   direction                   = "Inbound"
   access                      = "Allow"
   protocol                    = "Tcp"
-  source_port_range          = "*"
-  destination_port_range     = "443"
-  source_address_prefix      = "*"
-  destination_address_prefix = "*"
-  resource_group_name        = azurerm_resource_group.main.name
+  source_port_range           = "*"
+  destination_port_range      = "443"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = azurerm_network_security_group.web.name
 }
 
@@ -98,11 +98,11 @@ resource "azurerm_network_security_rule" "app_internal" {
   direction                   = "Inbound"
   access                      = "Allow"
   protocol                    = "Tcp"
-  source_port_range          = "*"
-  destination_port_range     = "8080"
-  source_address_prefix      = var.web_subnet_cidr
-  destination_address_prefix = "*"
-  resource_group_name        = azurerm_resource_group.main.name
+  source_port_range           = "*"
+  destination_port_range      = "8080"
+  source_address_prefix       = var.web_subnet_cidr
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.main.name
   network_security_group_name = azurerm_network_security_group.app.name
 }
 
