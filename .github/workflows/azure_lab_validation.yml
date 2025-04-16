@@ -33,8 +33,10 @@ jobs:
           - 'modules/tfb/azure/lab_07'         
           - 'modules/tfb/azure/lab_08'         
           - 'modules/tfb/azure/lab_09'         
-          - 'modules/tfb/azure/lab_10'         
-
+          - 'modules/tfb/azure/lab_10'
+          - 'modules/tfb/azure/lab_11'         
+          - 'modules/tfb/azure/lab_12'
+          
     env:
       # Global environment variables
       TF_IN_AUTOMATION: "true"
