@@ -39,6 +39,7 @@ jobs:
           - 'modules/tfb/azure/lab_13'
           - 'modules/tfb/azure/lab_14'
           - 'modules/tfb/azure/lab_15'
+          - 'modules/tfb/azure/lab_16'
 
     env:
       # Global environment variables
