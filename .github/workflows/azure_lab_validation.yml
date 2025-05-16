@@ -59,6 +59,7 @@ jobs:
     - name: 'Run az commands'
       run: |
         az account show
+        export ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Checkout code
       uses: actions/checkout@v4
@@ -108,6 +109,8 @@ jobs:
           # Also output for debugging
           PLAN_CODE=$(cat plan_exit_code.txt)
           echo "Plan completed with exit code: $PLAN_CODE"
+      env:
+        ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       
     - name: Check Plan Result
       id: check-plan
